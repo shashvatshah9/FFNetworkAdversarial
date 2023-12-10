@@ -237,7 +237,7 @@ def test_attack( model, device, test_loader, epsilon ):
         output = eval_loop_attack(model, perturbed_data_normalized.squeeze(0).squeeze(0), device, batched_per_layer=batched_per_layer)
         total += target.size(0)
         correct += (output.argmax(1) == target).sum().item()
-        adv_ex = perturbed_data_normalized[0][0].squeeze().detach().cpu().numpy()
+        adv_ex = perturbed_data_normalized.squeeze(0).squeeze(0)[0,:].detach().cpu().numpy()
         
         if len(adv_examples) < 5:
             adv_examples.append( (target[0].item(), output.argmax(1)[0].item(), adv_ex) )
@@ -344,4 +344,4 @@ if __name__ == "__main__":
         examples.append(ex)
     
     plot_epsilon_accuracy_graph(accuracies, epsilons)
-    # plot_attack_examples(examples, epsilons)
+    plot_attack_examples(examples, epsilons)
