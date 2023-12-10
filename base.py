@@ -191,13 +191,56 @@ def denorm(batch, mean=[0.1307], std=[0.3081]):
     Returns:
         torch.Tensor: batch of tensors without normalization applied to them.
     """
-    
+
     if isinstance(mean, list):
         mean = torch.tensor(mean).to(device)
     if isinstance(std, list):
         std = torch.tensor(std).to(device)
 
     return batch * std.view(1, -1, 1, 1) + mean.view(1, -1, 1, 1)
+
+
+def test_attack( model, device, test_loader, epsilon ):
+
+    correct = 0
+    adv_examples = []
+    total = 0
+    for data, target in test_loader:
+        data, target = data.to(device), target.to(device)
+
+        data.requires_grad = True
+
+        output = eval_loop_attack(model, data, device, batched_per_layer=batched_per_layer)
+        output = output.float()
+        traget = target.float()
+        criterion = nn.CrossEntropyLoss()
+        loss = criterion(output, target)
+
+        model.zero_grad()
+
+        loss.backward()
+
+        data_grad = data.grad.data
+
+        data_denorm = denorm(data)
+
+        # Call FGSM Attack
+        perturbed_data = fgsm_attack(data_denorm, epsilon, data_grad)
+
+        # Reapply normalization
+        perturbed_data_normalized = transforms.Normalize((0.1307,), (0.3081,))(perturbed_data)
+
+        output = eval_loop_attack(model, perturbed_data_normalized.squeeze(0).squeeze(0), device, batched_per_layer=batched_per_layer)
+        total += target.size(0)
+        correct += (output.argmax(1) == target).sum().item()
+        adv_ex = perturbed_data_normalized[0][0].squeeze().detach().cpu().numpy()
+        
+        if len(adv_examples) < 5:
+            adv_examples.append( (target[0].item(), output.argmax(1)[0].item(), adv_ex) )
+    
+    final_acc = correct/total
+    print(f"Epsilon: {epsilon}\tTest Accuracy = {correct} / {total} = {final_acc}")
+    return final_acc, adv_examples
 
 if __name__ == "__main__":
     # Define parameters
