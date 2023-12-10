@@ -217,7 +217,6 @@ def test_attack( model, device, test_loader, epsilon ):
 
         output = eval_loop_attack(model, data, device, batched_per_layer=batched_per_layer)
         output = output.float()
-        traget = target.float()
         correct_benign += (output.argmax(1) == target).sum().item()
         criterion = nn.CrossEntropyLoss()
         loss = criterion(output, target)
