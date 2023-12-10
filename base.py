@@ -1,10 +1,14 @@
 import matplotlib.pyplot as plt
 import torch
-import time
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 from torchvision.datasets import MNIST
 from torchvision.transforms import Compose, ToTensor, Normalize, Lambda
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from torchvision import datasets, transforms
+import numpy as np
 
 from FFNetwork import FFNetwork
 from FFEncoding import FFEncoding
