@@ -124,6 +124,44 @@ def eval_loop(model, input, device, batched_per_layer=False, encoding="overlay")
             goodness_per_label = torch.cat(goodness_per_label, 1)
             return goodness_per_label.argmax(1)
 
+def eval_loop_attack(model, input, device, batched_per_layer=False, encoding="overlay"):
+    """
+    eval_loop_attack(
+        model -> nn.Module model
+        input -> tensor input for eval
+        device -> torch.device
+        bached_per_layer -> False by default, if true then load each layer sequentially on device and store the output
+        encoding -> overlay by default
+    )
+    """
+
+    if batched_per_layer == True:
+        if encoding == "overlay":
+            goodness_per_label = []
+            for label in range(10):
+                h = overlay_y_on_x(input, label)
+                goodness = []
+                for module in model.children():
+                    module.to(device)
+                    h = module(h)
+                    goodness += [h.pow(2).mean(1)]
+                    module.to("cpu")
+                goodness_per_label += [sum(goodness).unsqueeze(1)]
+            goodness_per_label = torch.cat(goodness_per_label, 1)
+            return goodness_per_label
+    else:
+        model.to(device)
+        if encoding == "overlay":
+            goodness_per_label = []
+            for label in range(10):
+                h = overlay_y_on_x(input, label)
+                goodness = []
+                for module in model.children():
+                    h = module(h)
+                    goodness += [h.pow(2).mean(1)]
+                goodness_per_label += [sum(goodness).unsqueeze(1)]
+            goodness_per_label = torch.cat(goodness_per_label, 1)
+            return goodness_per_label
 
 def calc_error(model, x, y, device) -> float:
     model.eval()
