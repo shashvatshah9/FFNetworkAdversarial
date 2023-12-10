@@ -207,6 +207,7 @@ def denorm(batch, mean=[0.1307], std=[0.3081]):
 def test_attack( model, device, test_loader, epsilon ):
 
     correct = 0
+    correct_benign = 0
     adv_examples = []
     total = 0
     for data, target in test_loader:
@@ -217,6 +218,7 @@ def test_attack( model, device, test_loader, epsilon ):
         output = eval_loop_attack(model, data, device, batched_per_layer=batched_per_layer)
         output = output.float()
         traget = target.float()
+        correct_benign += (output.argmax(1) == target).sum().item()
         criterion = nn.CrossEntropyLoss()
         loss = criterion(output, target)
 
@@ -238,13 +240,14 @@ def test_attack( model, device, test_loader, epsilon ):
         total += target.size(0)
         correct += (output.argmax(1) == target).sum().item()
         adv_ex = perturbed_data_normalized.squeeze(0).squeeze(0)[0,:].detach().cpu().numpy()
-        
         if len(adv_examples) < 5:
             adv_examples.append( (target[0].item(), output.argmax(1)[0].item(), adv_ex) )
     
-    final_acc = correct/total
-    print(f"Epsilon: {epsilon}\tTest Accuracy = {correct} / {total} = {final_acc}")
-    return final_acc, adv_examples
+    final_acc_benign = correct_benign/total
+    final_acc_adversarial = correct/total
+    print(f"Epsilon: {epsilon}\tTest Accuracy Benign = {correct_benign} / {total} = {final_acc_benign}")
+    print(f"Epsilon: {epsilon}\tTest Accuracy Adversarial = {correct} / {total} = {final_acc_adversarial}")
+    return final_acc_adversarial, adv_examples
 
 def plot_epsilon_accuracy_graph(accuracies, epsilons):
     plt.figure(figsize=(5,5))
