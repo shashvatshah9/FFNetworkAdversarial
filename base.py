@@ -242,6 +242,35 @@ def test_attack( model, device, test_loader, epsilon ):
     print(f"Epsilon: {epsilon}\tTest Accuracy = {correct} / {total} = {final_acc}")
     return final_acc, adv_examples
 
+def plot_epsilon_accuracy_graph(accuracies, epsilons):
+    plt.figure(figsize=(5,5))
+    plt.plot(epsilons, accuracies, "*-")
+    plt.yticks(np.arange(0, 1.1, step=0.1))
+    plt.xticks(np.arange(0, .35, step=0.05))
+    plt.title("Accuracy vs Epsilon")
+    plt.xlabel("Epsilon")
+    plt.ylabel("Accuracy")
+    plt.savefig("Accuracy.png")
+    plt.show()
+
+def plot_attack_examples(examples, epsilons):
+    cnt = 0
+    plt.figure(figsize=(8,10))
+    for i in range(len(epsilons)):
+        for j in range(len(examples[i])):
+            cnt += 1
+            plt.subplot(len(epsilons),len(examples[0]),cnt)
+            plt.xticks([], [])
+            plt.yticks([], [])
+            if j == 0:
+                plt.ylabel(f"Eps: {epsilons[i]}", fontsize=14)
+            orig,adv,ex = examples[i][j]
+            plt.title(f"{orig} -> {adv}")
+            plt.imshow(ex.reshape(28, 28), cmap="gray")
+    plt.tight_layout()
+    plt.savefig("attack_examples.png")
+    plt.show()
+
 if __name__ == "__main__":
     # Define parameters
     EPOCHS = 10
