@@ -327,3 +327,17 @@ if __name__ == "__main__":
     # Plot errors
 
     plot_errors(training_errors, testing_errors, EPOCHS)
+
+    # FGSM attck
+    accuracies = []
+    examples = []
+    epsilons = [0, .05, .1, .15, .2, .25, .3]
+
+    for eps in epsilons:
+        print("Epsilon: ", eps)
+        acc, ex = test_attack(net, device, test_loader, eps)
+        accuracies.append(acc)
+        examples.append(ex)
+    
+    plot_epsilon_accuracy_graph(accuracies, epsilons)
+    # plot_attack_examples(examples, epsilons)
