@@ -115,7 +115,7 @@ def eval_loop(model, input, device, batched_per_layer=False, encoding="overlay")
                     module.to("cpu")
                 goodness_per_label += [sum(goodness).unsqueeze(1)]
             goodness_per_label = torch.cat(goodness_per_label, 1)
-            return goodness_per_label.argmax(1)
+            return goodness_per_label.argmax(1), goodness_per_label
     else:
         model.to(device)
         if encoding == "overlay":
@@ -128,52 +128,14 @@ def eval_loop(model, input, device, batched_per_layer=False, encoding="overlay")
                     goodness += [h.pow(2).mean(1)]
                 goodness_per_label += [sum(goodness).unsqueeze(1)]
             goodness_per_label = torch.cat(goodness_per_label, 1)
-            return goodness_per_label.argmax(1)
+            return goodness_per_label.argmax(1), goodness_per_label
 
-def eval_loop_attack(model, input, device, batched_per_layer=False, encoding="overlay"):
-    """
-    eval_loop_attack(
-        model -> nn.Module model
-        input -> tensor input for eval
-        device -> torch.device
-        bached_per_layer -> False by default, if true then load each layer sequentially on device and store the output
-        encoding -> overlay by default
-    )
-    """
-
-    if batched_per_layer == True:
-        if encoding == "overlay":
-            goodness_per_label = []
-            for label in range(10):
-                h = overlay_y_on_x(input, label)
-                goodness = []
-                for module in model.children():
-                    module.to(device)
-                    h = module(h)
-                    goodness += [h.pow(2).mean(1)]
-                    module.to("cpu")
-                goodness_per_label += [sum(goodness).unsqueeze(1)]
-            goodness_per_label = torch.cat(goodness_per_label, 1)
-            return goodness_per_label
-    else:
-        model.to(device)
-        if encoding == "overlay":
-            goodness_per_label = []
-            for label in range(10):
-                h = overlay_y_on_x(input, label)
-                goodness = []
-                for module in model.children():
-                    h = module(h)
-                    goodness += [h.pow(2).mean(1)]
-                goodness_per_label += [sum(goodness).unsqueeze(1)]
-            goodness_per_label = torch.cat(goodness_per_label, 1)
-            return goodness_per_label
 
 def calc_error(model, x, y, device) -> float:
     model.eval()
     return (
         1
-        - eval_loop(model, x, device, batched_per_layer=batched_per_layer)
+        - eval_loop(model, x, device, batched_per_layer=batched_per_layer)[0]
         .eq(y)
         .float()
         .mean()
@@ -217,7 +179,7 @@ def test_attack( model, device, test_loader, epsilon ):
 
         data.requires_grad = True
 
-        output = eval_loop_attack(model, data, device, batched_per_layer=batched_per_layer)
+        _, output = eval_loop_attack(model, data, device, batched_per_layer=batched_per_layer)
         output = output.float()
         correct_benign += (output.argmax(1) == target).sum().item()
         criterion = nn.CrossEntropyLoss()
@@ -237,7 +199,7 @@ def test_attack( model, device, test_loader, epsilon ):
         # Reapply normalization
         perturbed_data_normalized = transforms.Normalize((0.1307,), (0.3081,))(perturbed_data)
 
-        output = eval_loop_attack(model, perturbed_data_normalized.squeeze(0).squeeze(0), device, batched_per_layer=batched_per_layer)
+        _, output = eval_loop_attack(model, perturbed_data_normalized.squeeze(0).squeeze(0), device, batched_per_layer=batched_per_layer)
         total += target.size(0)
         correct += (output.argmax(1) == target).sum().item()
         adv_ex = perturbed_data_normalized.squeeze(0).squeeze(0)[0,:].detach().cpu().numpy()
@@ -275,7 +237,7 @@ def test_attack_and_data_preparation(model, device, data_loader, epsilon):
         
         data.requires_grad = True
 
-        output = eval_loop_attack(model_2, data, device, batched_per_layer=batched_per_layer)
+        _, output = eval_loop_attack(model_2, data, device, batched_per_layer=batched_per_layer)
         output = output.float()
         
         correct_benign += (output.argmax(1) == target).sum().item()
@@ -298,7 +260,7 @@ def test_attack_and_data_preparation(model, device, data_loader, epsilon):
         encoded_data_perturbed = prepare_data(perturbed_data_normalized.squeeze(0).squeeze(0).cpu(), target.cpu())
         data_iter.append(encoded_data_perturbed)
 
-        output = eval_loop_attack(model_2, perturbed_data_normalized.squeeze(0).squeeze(0), device, batched_per_layer=batched_per_layer)
+        _, output = eval_loop_attack(model_2, perturbed_data_normalized.squeeze(0).squeeze(0), device, batched_per_layer=batched_per_layer)
         total += target.size(0)
         correct += (output.argmax(1) == target).sum().item()
 
