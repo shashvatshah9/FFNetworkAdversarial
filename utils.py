@@ -2,6 +2,7 @@ from torchvision.datasets import MNIST
 from torchvision.transforms import Compose, ToTensor, Normalize, Lambda
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+import torch
 
 def get_data_loaders(train_batch_size=50, test_batch_size=50):
     transform = Compose(
