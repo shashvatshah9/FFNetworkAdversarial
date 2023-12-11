@@ -338,7 +338,7 @@ def plot_attack_examples(examples, epsilons):
 
 if __name__ == "__main__":
     # Define parameters
-    EPOCHS = 10
+    EPOCHS = 5
     BATCH_SIZE = 5000
     TRAIN_BATCH_SIZE = BATCH_SIZE
     TEST_BATCH_SIZE = BATCH_SIZE
