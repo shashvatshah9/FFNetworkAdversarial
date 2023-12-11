@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torchvision import datasets, transforms
 import numpy as np
+import copy
 
 from FFNetwork import FFNetwork
 from FFEncoding import FFEncoding
@@ -248,6 +249,62 @@ def test_attack( model, device, test_loader, epsilon ):
     print(f"Epsilon: {epsilon}\tTest Accuracy Adversarial = {correct} / {total} = {final_acc_adversarial}")
     return final_acc_adversarial, adv_examples
 
+def prepare_data(x, y):
+    x_pos, x_neg = None, None
+    if encoding == "overlay":
+        x_pos = overlay_y_on_x(x, y)
+        rand_mask = torch.randint(0, 9, y.size())
+        y_rnd = (y + rand_mask + 1) % 10
+        x_neg = overlay_y_on_x(x, y_rnd)
+    return (x_pos, x_neg)
+
+def test_attack_and_data_preparation(model, device, data_loader, epsilon):
+    correct = 0
+    correct_benign = 0
+    total = 0
+    data_iter = []
+    for data, target in data_loader:
+        model.eval()
+        model_2 = copy.deepcopy(model)
+        
+        encoded_data = prepare_data(data, target)
+        data_iter.append(encoded_data)
+
+        data, target = data.to(device), target.to(device)
+        
+        data.requires_grad = True
+
+        output = eval_loop_attack(model_2, data, device, batched_per_layer=batched_per_layer)
+        output = output.float()
+        
+        correct_benign += (output.argmax(1) == target).sum().item()
+        criterion = nn.CrossEntropyLoss()
+        loss = criterion(output, target)
+
+        model_2.zero_grad()
+
+        loss.backward()
+
+        data_grad = data.grad.data
+
+        data_denorm = denorm(data)
+
+        # Call FGSM Attack
+        perturbed_data = fgsm_attack(data_denorm, epsilon, data_grad)
+
+        # Reapply normalization
+        perturbed_data_normalized = transforms.Normalize((0.1307,), (0.3081,))(perturbed_data)
+        encoded_data_perturbed = prepare_data(perturbed_data_normalized.squeeze(0).squeeze(0).cpu(), target.cpu())
+        data_iter.append(encoded_data_perturbed)
+
+        output = eval_loop_attack(model_2, perturbed_data_normalized.squeeze(0).squeeze(0), device, batched_per_layer=batched_per_layer)
+        total += target.size(0)
+        correct += (output.argmax(1) == target).sum().item()
+
+    final_acc_benign = correct_benign/total
+    print(f"Epsilon: {epsilon}\Train Accuracy = {correct_benign} / {total} = {final_acc_benign}")
+    return final_acc_benign, data_iter
+
 def plot_epsilon_accuracy_graph(accuracies, epsilons, file_name):
     plt.figure(figsize=(5,5))
     plt.plot(epsilons, accuracies, "*-")
@@ -347,4 +404,75 @@ if __name__ == "__main__":
         examples.append(ex)
     
     plot_epsilon_accuracy_graph(accuracies, epsilons, "Before_adversarial_attack_epsilon_vs_accuracy")
+    plot_attack_examples(examples, epsilons)
+
+    # Resetting model
+    net = FFNetwork([784, 1000, 1000])
+    batched_per_layer = False
+    epsilon = 0.5
+    EPOCHS = 15
+    BATCH_SIZE = 5000
+    TRAIN_BATCH_SIZE = BATCH_SIZE
+    TEST_BATCH_SIZE = BATCH_SIZE
+    batched_per_layer = False
+    encoding = "overlay"
+    torch.manual_seed(1234)
+
+    training_errors = []
+    testing_errors = []
+    # Iterator in place of DataLoader
+    data_iter = []
+
+    # Build train and test loaders
+    train_loader, test_loader = get_data_loaders(
+        train_batch_size=TRAIN_BATCH_SIZE, test_batch_size=TEST_BATCH_SIZE
+    )
+
+    # Encode true and false labels on images to create positive and negative data
+    print("Encoding positive and negative data with correct and incorrect labels")
+    for x, y in tqdm(train_loader):
+        x_pos, x_neg = None, None
+        if encoding == "overlay":
+            x_pos = overlay_y_on_x(x, y)
+            rand_mask = torch.randint(0, 9, y.size())
+            y_rnd = (y + rand_mask + 1) % 10
+            x_neg = overlay_y_on_x(x, y_rnd)
+
+        data_iter.append((x_pos, x_neg))
+
+    # Adversarial training
+
+    epsilon = 0.3
+    for epoch in range(EPOCHS):
+        print(f"==== EPOCH: {epoch} ====")
+        start = time.time()
+        print("Training.....")
+        training_loop(net, data_iter, device)
+        print("eval train data")
+        training_error = test_loop(net, train_loader, device)
+        training_errors.append(training_error)
+        training_error, data_iter = test_attack_and_data_preparation(net, device, train_loader, epsilon)
+        # training_errors.append(training_error)
+        print("eval test data")
+        testing_error = test_loop(net, test_loader, device)
+        testing_errors.append(testing_error)
+        end = time.time()
+        elapsed = end - start
+        print(f"Completed epoch {epoch} in {elapsed} seconds")
+        epsilon += 0.2
+    
+    plot_errors(training_errors, testing_errors, EPOCHS)
+
+    # FGSM attck
+    accuracies = []
+    examples = []
+    epsilons = [0, .05, .1, .15, .2, .25, .3]
+
+    for eps in epsilons:
+        print("Epsilon: ", eps)
+        acc, ex = test_attack(net, device, test_loader, eps)
+        accuracies.append(acc)
+        examples.append(ex)
+
+    plot_epsilon_accuracy_graph(accuracies, epsilons, "After_adversarial_attack_epsilon_vs_accuracy")
     plot_attack_examples(examples, epsilons)
