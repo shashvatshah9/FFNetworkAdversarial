@@ -51,7 +51,7 @@ def visualize_sample(data, name="", idx=0):
     plt.show()
 
 
-def plot_errors(training_errors, testing_errors, EPOCHS):
+def plot_errors(training_errors, testing_errors, EPOCHS, file_name):
     plt.figure(figsize=(10, 6))  # Adjust the figsize to make the plot wider
     plt.plot(
         range(1, EPOCHS + 1), training_errors, label="Training Error"
@@ -64,7 +64,8 @@ def plot_errors(training_errors, testing_errors, EPOCHS):
     plt.title("Error over Epochs")
     plt.legend()
     plt.xticks(range(1, EPOCHS + 1))  # Set x-axis tick labels to 1, 2, ...
-    plt.savefig("error_plot_30_epochs.png")  # Save the plot as a PNG file
+    file_name = file_name + '.png'
+    plt.savefig(file_name)  # Save the plot as a PNG file
     plt.show()
 
 
@@ -390,7 +391,7 @@ if __name__ == "__main__":
         print(f"Completed epoch {epoch} in {elapsed} seconds")
     # Plot errors
 
-    plot_errors(training_errors, testing_errors, EPOCHS)
+    plot_errors(training_errors, testing_errors, EPOCHS, "error_plot_before_adversarial_training")
 
     # FGSM attck
     accuracies = []
@@ -403,7 +404,7 @@ if __name__ == "__main__":
         accuracies.append(acc)
         examples.append(ex)
     
-    plot_epsilon_accuracy_graph(accuracies, epsilons, "Before_adversarial_attack_epsilon_vs_accuracy")
+    plot_epsilon_accuracy_graph(accuracies, epsilons, "attack_epsilon_vs_accuracy_before_adversarial")
     plot_attack_examples(examples, epsilons)
 
     # Resetting model
@@ -461,7 +462,7 @@ if __name__ == "__main__":
         print(f"Completed epoch {epoch} in {elapsed} seconds")
         epsilon += 0.2
     
-    plot_errors(training_errors, testing_errors, EPOCHS)
+    plot_errors(training_errors, testing_errors, EPOCHS, "error_plot_after_adversarial_training.png")
 
     # FGSM attck
     accuracies = []
@@ -474,5 +475,5 @@ if __name__ == "__main__":
         accuracies.append(acc)
         examples.append(ex)
 
-    plot_epsilon_accuracy_graph(accuracies, epsilons, "After_adversarial_attack_epsilon_vs_accuracy")
+    plot_epsilon_accuracy_graph(accuracies, epsilons, "attack_epsilon_vs_accuracy_after_adversarial")
     plot_attack_examples(examples, epsilons)
