@@ -248,7 +248,7 @@ def test_attack( model, device, test_loader, epsilon ):
     print(f"Epsilon: {epsilon}\tTest Accuracy Adversarial = {correct} / {total} = {final_acc_adversarial}")
     return final_acc_adversarial, adv_examples
 
-def plot_epsilon_accuracy_graph(accuracies, epsilons):
+def plot_epsilon_accuracy_graph(accuracies, epsilons, file_name):
     plt.figure(figsize=(5,5))
     plt.plot(epsilons, accuracies, "*-")
     plt.yticks(np.arange(0, 1.1, step=0.1))
@@ -256,7 +256,8 @@ def plot_epsilon_accuracy_graph(accuracies, epsilons):
     plt.title("Accuracy vs Epsilon")
     plt.xlabel("Epsilon")
     plt.ylabel("Accuracy")
-    plt.savefig("Accuracy.png")
+    file_name = file_name + '.png'
+    plt.savefig(file_name)
     plt.show()
 
 def plot_attack_examples(examples, epsilons):
@@ -345,5 +346,5 @@ if __name__ == "__main__":
         accuracies.append(acc)
         examples.append(ex)
     
-    plot_epsilon_accuracy_graph(accuracies, epsilons)
+    plot_epsilon_accuracy_graph(accuracies, epsilons, "Before_adversarial_attack_epsilon_vs_accuracy")
     plot_attack_examples(examples, epsilons)
