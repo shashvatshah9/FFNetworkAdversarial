@@ -205,7 +205,7 @@ def test_attack_and_data_preparation(model, device, data_loader, epsilon):
         encoded_data_perturbed = prepare_data(perturbed_data_normalized.squeeze(0).squeeze(0).cpu(), target.cpu())
         data_iter.append(encoded_data_perturbed)
 
-        _, output = eval_loop_attack(model_2, perturbed_data_normalized.squeeze(0).squeeze(0), device, batched_per_layer=batched_per_layer)
+        _, output = eval_loop(model_2, perturbed_data_normalized.squeeze(0).squeeze(0), device, batched_per_layer=batched_per_layer)
         total += target.size(0)
         correct += (output.argmax(1) == target).sum().item()
 
