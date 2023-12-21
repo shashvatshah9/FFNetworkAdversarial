@@ -202,7 +202,11 @@ def test_attack_and_data_preparation(model, device, data_loader, epsilon):
 
         # Reapply normalization
         perturbed_data_normalized = transforms.Normalize((0.1307,), (0.3081,))(perturbed_data)
+
+        # Encoding perturbed images for the Adversarial training.
         encoded_data_perturbed = prepare_data(perturbed_data_normalized.squeeze(0).squeeze(0).cpu(), target.cpu())
+
+        # Appending the Encoded Perturbed images on the training set.
         data_iter.append(encoded_data_perturbed)
 
         _, output = eval_loop(model_2, perturbed_data_normalized.squeeze(0).squeeze(0), device, batched_per_layer=batched_per_layer)
@@ -320,7 +324,7 @@ if __name__ == "__main__":
         data_iter.append((x_pos, x_neg))
 
     # Adversarial training
-
+    # Update the epsilon value for generating different set of Adversarial examples for the adversarial training
     epsilon = 0.3
     for epoch in range(EPOCHS):
         print(f"==== EPOCH: {epoch} ====")
@@ -338,11 +342,12 @@ if __name__ == "__main__":
         end = time.time()
         elapsed = end - start
         print(f"Completed epoch {epoch} in {elapsed} seconds")
+        # updating epsilon value for generating newer set of Perturbed images.
         epsilon += 0.2
     
     plot_errors(training_errors, testing_errors, EPOCHS, "error_plot_after_adversarial_training.png")
 
-    # FGSM attck
+    # FGSM attck after the Adversarial training
     accuracies = []
     examples = []
     epsilons = [0, .05, .1, .15, .2, .25, .3]
@@ -353,5 +358,7 @@ if __name__ == "__main__":
         accuracies.append(acc)
         examples.append(ex)
 
+    # Plotting the Epsilon vs Accuray graph.
     plot_epsilon_accuracy_graph(accuracies, epsilons, "attack_epsilon_vs_accuracy_after_adversarial")
+    # Plotting the adverarial samples on each epsilon values
     plot_attack_examples(examples, epsilons)
